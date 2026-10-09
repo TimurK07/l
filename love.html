@@ -1033,10 +1033,28 @@
           }
         }
         p.rot += p.rotSpeed;
+      }
+      // pass 1: plain hearts first (background layer)
+      for(const p of finaleParticles){
+        if(p.isPhoto) continue;
         fCtx.save();
         fCtx.translate(p.x, p.y);
         fCtx.rotate(p.rot);
-        if(p.isPhoto && p.img && p.img.complete && p.img.naturalWidth){
+        fCtx.fillStyle = p.color;
+        fCtx.shadowColor = p.color;
+        fCtx.shadowBlur = 14;
+        fCtx.globalAlpha = 0.9;
+        heartPath(fCtx, 0, -p.size/2, p.size);
+        fCtx.fill();
+        fCtx.restore();
+      }
+      // pass 2: photos on top so they always sit above the hearts
+      for(const p of finaleParticles){
+        if(!p.isPhoto) continue;
+        fCtx.save();
+        fCtx.translate(p.x, p.y);
+        fCtx.rotate(p.rot);
+        if(p.img && p.img.complete && p.img.naturalWidth){
           const r = p.size * 0.62;
           fCtx.globalAlpha = 0.5 + 0.5*Math.min(1, frame/60);
           fCtx.shadowColor = 'rgba(255,170,190,0.9)';
