@@ -1,0 +1,822 @@
+<title>Для Аружан</title>
+<style>
+  :root{
+    --bg-1:#2b0a1f;
+    --bg-2:#4a1030;
+    --bg-3:#7a1f3d;
+    --accent:#ff6f91;
+    --accent-2:#ffd1dc;
+    --gold:#ffd97a;
+    --ink:#fff5f7;
+    --ink-dim:rgba(255,245,247,0.72);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background: radial-gradient(ellipse at 30% 20%, var(--bg-3), var(--bg-2) 45%, var(--bg-1) 85%);
+    overflow:hidden;
+    font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    color: var(--ink);
+    -webkit-user-select:none; user-select:none;
+  }
+  @font-face{
+    font-family:'PD'; src:local('Playfair Display');
+  }
+  .accent-font{ font-family:'Snell Roundhand','Brush Script MT', cursive; }
+
+  #stage{
+    position:fixed; inset:0; width:100%; height:100%;
+  }
+  canvas#hearts-bg, canvas#finale-canvas{
+    position:fixed; inset:0; width:100%; height:100%; display:block;
+  }
+  canvas#finale-canvas{ pointer-events:none; opacity:0; transition:opacity 1.4s ease; }
+
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:50;
+    opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .vignette{
+    position:fixed; inset:0; pointer-events:none; z-index:40;
+    box-shadow: inset 0 0 18vw 2vw rgba(10,0,6,0.55);
+  }
+
+  /* ---------- Scene container ---------- */
+  .scene{
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    z-index:10;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 1s ease;
+  }
+  .scene.active{ opacity:1; pointer-events:auto; }
+
+  /* ---------- Scene 1: wipe reveal ---------- */
+  #scene-wipe{
+    flex-direction:column;
+  }
+  .wipe-caption{
+    font-size: clamp(22px, 4vw, 40px);
+    letter-spacing:0.5px;
+    text-align:center;
+    margin-bottom: 18px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    animation: floatY 4s ease-in-out infinite;
+  }
+  .wipe-sub{
+    font-family: Georgia, serif;
+    font-size: 14px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 36px;
+  }
+  @keyframes floatY{
+    0%,100%{ transform: translateY(0); }
+    50%{ transform: translateY(-6px); }
+  }
+
+  .wipe-frame{
+    position:relative;
+    width: min(78vw, 420px);
+    height: min(78vw, 420px);
+    border-radius: 28px;
+    overflow:hidden;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+    touch-action:none;
+    cursor: grab;
+  }
+  .wipe-frost{
+    position:absolute; inset:0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.25), transparent 40%),
+      radial-gradient(circle at 70% 70%, rgba(255,255,255,0.18), transparent 45%),
+      linear-gradient(135deg, #e9d8e0, #c9a9bd 40%, #a9839e);
+    backdrop-filter: blur(2px);
+  }
+  .wipe-frost::after{
+    content:'';
+    position:absolute; inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02' numOctaves='3'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='0.5'/%3E%3C/svg%3E");
+    mix-blend-mode:overlay;
+  }
+  #wipe-canvas{
+    position:absolute; inset:0; width:100%; height:100%;
+  }
+  .wipe-reveal{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(160deg, #3a0d22, #6b1538 60%, #902249);
+  }
+  .wipe-reveal-inner{
+    text-align:center; padding: 20px;
+  }
+  .wipe-reveal-inner .q{
+    font-size: clamp(20px, 3.4vw, 28px);
+    margin-bottom: 6px;
+  }
+  .wipe-reveal-inner .name{
+    font-size: clamp(30px, 5vw, 44px);
+    color: var(--gold);
+    font-family:'Snell Roundhand','Brush Script MT', cursive;
+  }
+  .wipe-hint{
+    margin-top: 28px;
+    font-size: 12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color: var(--ink-dim);
+    opacity:0.8;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:0.5; }
+    50%{ opacity:1; }
+  }
+  .finger-cursor{
+    position:absolute;
+    width: 46px; height:46px;
+    pointer-events:none;
+    transform: translate(-50%,-50%);
+    opacity:0.9;
+    filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));
+    display:none;
+  }
+
+  .next-btn{
+    margin-top: 44px;
+    padding: 14px 42px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.08);
+    color: var(--ink);
+    font-family: Georgia, serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    cursor:pointer;
+    opacity:0;
+    transform: translateY(12px);
+    transition: all 0.4s ease, opacity 0.6s ease 0.2s, transform 0.6s ease 0.2s;
+  }
+  .next-btn.show{ opacity:1; transform: translateY(0); }
+  .next-btn:hover{
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 10px 30px rgba(255,111,145,0.45);
+    transform: translateY(-2px);
+  }
+
+  /* ---------- Scene 2: the question ---------- */
+  #scene-question .q-title{
+    font-size: clamp(32px, 6vw, 56px);
+    text-align:center;
+    margin: 0 0 10px;
+    text-shadow: 0 4px 30px rgba(255,111,145,0.3);
+  }
+  #scene-question .q-sub{
+    text-align:center;
+    color: var(--ink-dim);
+    font-family: Georgia, serif;
+    font-size: 15px;
+    margin-bottom: 50px;
+    letter-spacing: 0.5px;
+  }
+  .choice-row{
+    position:relative;
+    display:flex;
+    gap: 40px;
+    align-items:center;
+    justify-content:center;
+    height: 90px;
+    width: min(90vw, 480px);
+  }
+  .choice-btn{
+    position:relative;
+    padding: 18px 46px;
+    border-radius: 999px;
+    font-size: 19px;
+    font-family: Georgia, serif;
+    letter-spacing: 1px;
+    cursor:pointer;
+    border: none;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    z-index: 5;
+  }
+  #btn-yes{
+    background: linear-gradient(135deg, #ff85a1, #ff5c7a);
+    color: #fff;
+    box-shadow: 0 12px 34px rgba(255,92,122,0.5);
+  }
+  #btn-yes:hover{ transform: scale(1.08); box-shadow: 0 16px 42px rgba(255,92,122,0.65); }
+  #btn-yes:active{ transform: scale(0.96); }
+
+  #btn-no{
+    background: rgba(255,255,255,0.08);
+    color: var(--ink);
+    border: 1px solid rgba(255,255,255,0.3);
+    position: fixed;
+  }
+
+  .yes-grow{
+    animation: yesGrow 0.5s ease forwards;
+  }
+  @keyframes yesGrow{
+    0%{ transform: scale(1); }
+    50%{ transform: scale(1.35); }
+    100%{ transform: scale(0); opacity:0; }
+  }
+
+  .teasing-caption{
+    margin-top: 30px;
+    font-size: 18px;
+    color: var(--ink-dim);
+    text-align:center;
+    font-family: Georgia, serif;
+    letter-spacing: 0.5px;
+    min-height: 18px;
+    opacity:0;
+    transition: opacity 0.4s ease;
+  }
+  .teasing-caption.show{ opacity:1; }
+
+  /* ---------- Scene 3: the card / letter ---------- */
+  #scene-card{
+    perspective: 1400px;
+  }
+  .card{
+    width: min(88vw, 460px);
+    padding: 52px 40px 44px;
+    border-radius: 18px;
+    background: linear-gradient(160deg, #fff8f3, #ffe9ee 60%, #ffd9e3);
+    color: #5a1430;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.4) inset;
+    position:relative;
+    transform: rotateX(-90deg) translateY(40px);
+    transform-origin: top center;
+    animation: cardOpen 1.1s cubic-bezier(.2,1.3,.3,1) forwards;
+    text-align:center;
+  }
+  @keyframes cardOpen{
+    to{ transform: rotateX(0deg) translateY(0); }
+  }
+  .card::before{
+    content:'♥';
+    position:absolute;
+    top:-26px; left:50%; transform:translateX(-50%);
+    width:52px; height:52px;
+    background: linear-gradient(135deg, #ff85a1, #ff5c7a);
+    color:#fff;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size: 24px;
+    box-shadow: 0 10px 24px rgba(255,92,122,0.5);
+  }
+  .card .to{
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform:uppercase;
+    color: #b65a7a;
+    margin-bottom: 18px;
+  }
+  .card .msg{
+    font-size: clamp(18px, 2.6vw, 22px);
+    line-height: 1.65;
+    margin-bottom: 24px;
+  }
+  .card .msg .accent-font{
+    font-size: 1.3em;
+    color: #d6395f;
+  }
+  .card .sign{
+    font-family:'Snell Roundhand','Brush Script MT', cursive;
+    font-size: 30px;
+    color: #c2185b;
+    margin-top: 6px;
+  }
+  .card .fineprint{
+    margin-top: 22px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #b98a9a;
+    text-transform:uppercase;
+  }
+
+  .finale-btn{
+    margin-top: 40px;
+    padding: 14px 40px;
+    border-radius: 999px;
+    border: none;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--ink);
+    font-family: Georgia, serif;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    opacity:0;
+    animation: fadeUp 1s ease forwards 1.6s;
+  }
+  @keyframes fadeUp{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+  .finale-btn:hover{ background: var(--accent); border-color: var(--accent); }
+
+  /* ---------- Scene 4: finale heart ---------- */
+  #scene-finale{
+    flex-direction:column;
+  }
+  .finale-name{
+    font-family:'Snell Roundhand','Brush Script MT', cursive;
+    font-size: clamp(42px, 9vw, 90px);
+    color: #fff;
+    text-shadow: 0 0 30px rgba(255,120,150,0.8), 0 0 70px rgba(255,80,130,0.5);
+    opacity:0;
+    letter-spacing: 1px;
+  }
+  .finale-sub{
+    margin-top: 14px;
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform:uppercase;
+    color: var(--ink-dim);
+    opacity:0;
+  }
+
+  @media (max-width: 520px){
+    .choice-row{ height: 70px; }
+    .choice-btn{ padding: 15px 34px; font-size: 16px; }
+  }
+</style>
+
+<div id="stage">
+  <canvas id="hearts-bg"></canvas>
+  <canvas id="finale-canvas"></canvas>
+
+  <!-- Scene 1 : wipe reveal -->
+  <section class="scene active" id="scene-wipe">
+    <div class="wipe-caption">За этим стеклом — кое-что личное</div>
+    <div class="wipe-sub">сотри дымку пальцем</div>
+    <div class="wipe-frame" id="wipe-frame">
+      <div class="wipe-reveal">
+        <div class="wipe-reveal-inner">
+          <div class="q">у меня есть вопрос к тебе,</div>
+          <div class="name">Жанм 💗</div>
+        </div>
+      </div>
+      <canvas id="wipe-canvas"></canvas>
+    </div>
+    <div class="wipe-hint" id="wipe-hint">проведи пальцем по стеклу</div>
+    <button class="next-btn" id="to-question-btn">продолжить →</button>
+  </section>
+
+  <!-- Scene 2 : the question -->
+  <section class="scene" id="scene-question">
+    <div class="q-title">Ты меня любишь? 💗</div>
+    <div class="q-sub">выбери честно... хотя выбор тут один 😏</div>
+    <div class="choice-row" id="choice-row">
+      <button class="choice-btn" id="btn-yes">Да, очень! 😍</button>
+      <button class="choice-btn" id="btn-no">Не хочу</button>
+    </div>
+    <div class="teasing-caption" id="teasing-caption"></div>
+  </section>
+
+  <!-- Scene 3 : the card -->
+  <section class="scene" id="scene-card">
+    <div class="card" id="letter-card">
+      <div class="to">Для моей Жанм</div>
+      <div class="msg">
+        Я знала, что ты не сможешь сказать "нет" 🙈<br><br>
+        Я тебя <span class="accent-font">тоже</span> очень сильно люблю,
+        моя родная. Ты — самое тёплое, что есть в моей жизни,
+        и я благодарна за каждый день с тобой. 💞
+      </div>
+      <div class="sign">твой человек</div>
+      <div class="fineprint">нажми ниже, чтобы увидеть ещё кое-что</div>
+    </div>
+    <button class="finale-btn" id="to-finale-btn">и напоследок...</button>
+  </section>
+
+  <!-- Scene 4 : finale -->
+  <section class="scene" id="scene-finale">
+    <div class="finale-name" id="finale-name">Aruzhan</div>
+    <div class="finale-sub" id="finale-sub">навсегда в моём сердце</div>
+  </section>
+</div>
+
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ Background floating hearts (canvas) ============ */
+  const bgCanvas = document.getElementById('hearts-bg');
+  const bgCtx = bgCanvas.getContext('2d');
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    bgCanvas.width = W*DPR; bgCanvas.height = H*DPR;
+    bgCanvas.style.width = W+'px'; bgCanvas.style.height = H+'px';
+    bgCtx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function heartPath(ctx, x, y, size){
+    ctx.beginPath();
+    const topCurveHeight = size * 0.3;
+    ctx.moveTo(x, y + topCurveHeight);
+    ctx.bezierCurveTo(x, y, x - size/2, y, x - size/2, y + topCurveHeight);
+    ctx.bezierCurveTo(x - size/2, y + (size+topCurveHeight)/2, x, y + (size+topCurveHeight)/1.3, x, y + size);
+    ctx.bezierCurveTo(x, y + (size+topCurveHeight)/1.3, x + size/2, y + (size+topCurveHeight)/2, x + size/2, y + topCurveHeight);
+    ctx.bezierCurveTo(x + size/2, y, x, y, x, y + topCurveHeight);
+    ctx.closePath();
+  }
+
+  const palette = ['#ff8aa6','#ffd1dc','#ffb3c6','#ff5c7a','#ffe3ea','#ffd97a'];
+  const NUM = 46;
+  let bgHearts = [];
+  function initHearts(){
+    bgHearts = [];
+    for(let i=0;i<NUM;i++){
+      bgHearts.push({
+        x: Math.random()*W,
+        y: Math.random()*H + H*0.2,
+        size: 8 + Math.random()*22,
+        speed: 0.25 + Math.random()*0.7,
+        drift: (Math.random()-0.5)*0.6,
+        swaySeed: Math.random()*1000,
+        swayAmp: 10 + Math.random()*30,
+        rot: Math.random()*Math.PI,
+        rotSpeed: (Math.random()-0.5)*0.01,
+        color: palette[Math.floor(Math.random()*palette.length)],
+        alpha: 0.35 + Math.random()*0.5
+      });
+    }
+  }
+  initHearts();
+
+  let t = 0;
+  let bgRunning = true;
+  function drawBgHearts(){
+    if(!bgRunning) return;
+    t += 1;
+    bgCtx.clearRect(0,0,W,H);
+    for(const h of bgHearts){
+      h.y -= h.speed;
+      h.x += Math.sin((t+h.swaySeed)*0.01) * 0.4 + h.drift*0.1;
+      h.rot += h.rotSpeed;
+      if(h.y < -40){
+        h.y = H + 40;
+        h.x = Math.random()*W;
+      }
+      bgCtx.save();
+      bgCtx.translate(h.x, h.y);
+      bgCtx.rotate(h.rot);
+      bgCtx.globalAlpha = h.alpha;
+      bgCtx.fillStyle = h.color;
+      bgCtx.shadowColor = h.color;
+      bgCtx.shadowBlur = 12;
+      heartPath(bgCtx, 0, -h.size/2, h.size);
+      bgCtx.fill();
+      bgCtx.restore();
+    }
+    requestAnimationFrame(drawBgHearts);
+  }
+  requestAnimationFrame(drawBgHearts);
+
+  /* ============ Scene management ============ */
+  const scenes = {
+    wipe: document.getElementById('scene-wipe'),
+    question: document.getElementById('scene-question'),
+    card: document.getElementById('scene-card'),
+    finale: document.getElementById('scene-finale')
+  };
+  function showScene(name){
+    Object.values(scenes).forEach(s => s.classList.remove('active'));
+    scenes[name].classList.add('active');
+  }
+
+  /* ============ Scene 1: wipe-to-reveal ============ */
+  const wipeFrame = document.getElementById('wipe-frame');
+  const wipeCanvas = document.getElementById('wipe-canvas');
+  const wCtx = wipeCanvas.getContext('2d');
+  const wipeHint = document.getElementById('wipe-hint');
+  const toQuestionBtn = document.getElementById('to-question-btn');
+  let wipeW, wipeH;
+
+  function sizeWipe(){
+    const rect = wipeFrame.getBoundingClientRect();
+    wipeW = rect.width; wipeH = rect.height;
+    wipeCanvas.width = wipeW * DPR;
+    wipeCanvas.height = wipeH * DPR;
+    wipeCanvas.style.width = wipeW+'px';
+    wipeCanvas.style.height = wipeH+'px';
+    wCtx.setTransform(DPR,0,0,DPR,0,0);
+    paintFrost();
+  }
+  function paintFrost(){
+    wCtx.clearRect(0,0,wipeW,wipeH);
+    const g = wCtx.createLinearGradient(0,0,wipeW,wipeH);
+    g.addColorStop(0,'#e9d8e0');
+    g.addColorStop(0.5,'#c9a9bd');
+    g.addColorStop(1,'#a9839e');
+    wCtx.fillStyle = g;
+    wCtx.fillRect(0,0,wipeW,wipeH);
+    // noisy frost speckles
+    wCtx.save();
+    wCtx.globalAlpha = 0.5;
+    for(let i=0;i<260;i++){
+      wCtx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.5)' : 'rgba(120,90,110,0.25)';
+      const sx = Math.random()*wipeW, sy = Math.random()*wipeH, sz = Math.random()*2.2;
+      wCtx.fillRect(sx, sy, sz, sz);
+    }
+    wCtx.restore();
+  }
+  setTimeout(sizeWipe, 50);
+  window.addEventListener('resize', sizeWipe);
+
+  wCtx.globalCompositeOperation = 'destination-out';
+  let wiping = false;
+  let wipedPixels = 0;
+  let totalPixelsApprox = 0;
+  let wipeComplete = false;
+
+  function wipeAt(x, y){
+    wCtx.save();
+    wCtx.globalCompositeOperation = 'destination-out';
+    const r = 34;
+    const grad = wCtx.createRadialGradient(x,y,0,x,y,r);
+    grad.addColorStop(0, 'rgba(0,0,0,1)');
+    grad.addColorStop(0.7, 'rgba(0,0,0,0.9)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    wCtx.fillStyle = grad;
+    wCtx.beginPath();
+    wCtx.arc(x,y,r,0,Math.PI*2);
+    wCtx.fill();
+    wCtx.restore();
+  }
+
+  function getPos(e){
+    const rect = wipeCanvas.getBoundingClientRect();
+    if(e.touches && e.touches.length){
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function checkWipeProgress(){
+    if(wipeComplete) return;
+    // sample pixel alpha on a grid to estimate cleared percentage
+    const sampleStep = 10;
+    let cleared = 0, total = 0;
+    const imgData = wCtx.getImageData(0,0, Math.max(1,wipeCanvas.width), Math.max(1,wipeCanvas.height));
+    const data = imgData.data;
+    const stepPx = sampleStep * DPR;
+    for(let yy=0; yy<wipeCanvas.height; yy+=stepPx){
+      for(let xx=0; xx<wipeCanvas.width; xx+=stepPx){
+        const idx = (yy*wipeCanvas.width + xx) * 4 + 3;
+        if(data[idx] !== undefined){
+          total++;
+          if(data[idx] < 60) cleared++;
+        }
+      }
+    }
+    if(total > 0 && cleared/total > 0.55){
+      completeWipe();
+    }
+  }
+
+  function completeWipe(){
+    wipeComplete = true;
+    wipeHint.style.opacity = '0';
+    // fade the rest of the frost away smoothly
+    wipeCanvas.style.transition = 'opacity 0.8s ease';
+    wipeCanvas.style.opacity = '0';
+    toQuestionBtn.classList.add('show');
+  }
+
+  let lastCheck = 0;
+  function handleMove(e){
+    if(!wiping) return;
+    const p = getPos(e);
+    wipeAt(p.x, p.y);
+    const now = Date.now();
+    if(now - lastCheck > 220){
+      lastCheck = now;
+      checkWipeProgress();
+    }
+  }
+  wipeCanvas.addEventListener('pointerdown', (e)=>{ wiping = true; wipeAt(getPos(e).x, getPos(e).y); });
+  window.addEventListener('pointerup', ()=>{ wiping = false; });
+  wipeCanvas.addEventListener('pointermove', handleMove);
+  wipeCanvas.addEventListener('pointerleave', ()=>{});
+
+  toQuestionBtn.addEventListener('click', ()=>{
+    showScene('question');
+  });
+
+  /* ============ Scene 2: runaway "No" button ============ */
+  const btnYes = document.getElementById('btn-yes');
+  const btnNo = document.getElementById('btn-no');
+  const choiceRow = document.getElementById('choice-row');
+  const teasingCaption = document.getElementById('teasing-caption');
+
+  const teaseLines = [
+    "не в этот раз...",
+    "ай, не поймать!",
+    "попробуй ещё 😏",
+    "а вот и нет",
+    "ты быстрее, но не сегодня",
+    "неа",
+    "этот вариант не для тебя",
+    "даже не думай 🙅‍♀️",
+    "я быстрее тебя 😜",
+    "любовь не отпускает так просто",
+    "судьба уже всё решила",
+    "сердце важнее кнопки",
+    "упс, промах",
+    "эта кнопка сломана, только \"да\" работает",
+    "я слишком шустрая для тебя",
+    "нет — не вариант сегодня",
+    "ты всё равно любишь меня 💗",
+    "попытка не засчитана"
+  ];
+
+  function placeNoButtonInitial(){
+    const rect = btnYes.getBoundingClientRect();
+    const rowRect = choiceRow.getBoundingClientRect();
+    btnNo.style.left = (rect.right + 40) + 'px';
+    btnNo.style.top = rect.top + 'px';
+  }
+
+  function moveNoButtonAway(fromX, fromY){
+    const margin = 60;
+    const bw = btnNo.offsetWidth || 150;
+    const bh = btnNo.offsetHeight || 56;
+    const maxX = window.innerWidth - bw - margin;
+    const maxY = window.innerHeight - bh - margin;
+    let nx, ny, tries = 0;
+    do{
+      nx = margin + Math.random() * (maxX - margin);
+      ny = margin + Math.random() * (maxY - margin);
+      tries++;
+    } while(fromX !== null && Math.hypot(nx-fromX, ny-fromY) < 220 && tries < 12);
+    btnNo.style.left = nx + 'px';
+    btnNo.style.top = ny + 'px';
+  }
+
+  function dodge(e){
+    const r = btnNo.getBoundingClientRect();
+    moveNoButtonAway(r.left + r.width/2, r.top + r.height/2);
+    teasingCaption.textContent = teaseLines[Math.floor(Math.random()*teaseLines.length)];
+    teasingCaption.classList.add('show');
+  }
+
+  btnNo.addEventListener('mouseenter', dodge);
+  btnNo.addEventListener('pointerdown', (e)=>{ e.preventDefault(); dodge(e); });
+  btnNo.addEventListener('touchstart', (e)=>{ e.preventDefault(); dodge(e); }, {passive:false});
+  btnNo.addEventListener('click', (e)=>{ e.preventDefault(); dodge(e); });
+
+  // also dodge if the pointer gets close (makes it feel alive even before hover triggers)
+  let lastDodge = 0;
+  window.addEventListener('pointermove', (e)=>{
+    if(!scenes.question.classList.contains('active')) return;
+    const r = btnNo.getBoundingClientRect();
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    const d = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const now = Date.now();
+    if(d < 90 && now - lastDodge > 350){
+      lastDodge = now;
+      dodge(e);
+    }
+  });
+
+  btnYes.addEventListener('click', ()=>{
+    btnYes.classList.add('yes-grow');
+    teasingCaption.classList.remove('show');
+    setTimeout(()=>{
+      showScene('card');
+    }, 480);
+  });
+
+  // init position once scene is shown first time
+  const questionObserver = new MutationObserver(()=>{
+    if(scenes.question.classList.contains('active')){
+      setTimeout(placeNoButtonInitial, 60);
+    }
+  });
+  questionObserver.observe(scenes.question, { attributes:true, attributeFilter:['class'] });
+  window.addEventListener('resize', ()=>{
+    if(scenes.question.classList.contains('active')) placeNoButtonInitial();
+  });
+
+  /* ============ Scene 3 -> 4 ============ */
+  document.getElementById('to-finale-btn').addEventListener('click', ()=>{
+    showScene('finale');
+    bgRunning = false;
+    bgCtx.clearRect(0,0,W,H);
+    startFinale();
+  });
+
+  /* ============ Scene 4: hearts assemble into a heart + name ============ */
+  const finaleCanvas = document.getElementById('finale-canvas');
+  const fCtx = finaleCanvas.getContext('2d');
+  const finaleName = document.getElementById('finale-name');
+  const finaleSub = document.getElementById('finale-sub');
+
+  function sizeFinale(){
+    finaleCanvas.width = W*DPR; finaleCanvas.height = H*DPR;
+    finaleCanvas.style.width = W+'px'; finaleCanvas.style.height = H+'px';
+    fCtx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', sizeFinale);
+
+  function heartTargetPoints(count, cx, cy, scale){
+    const pts = [];
+    for(let i=0;i<count;i++){
+      const a = Math.PI - (i/count) * Math.PI * 2;
+      const x = 16 * Math.pow(Math.sin(a), 3);
+      const y = 13*Math.cos(a) - 5*Math.cos(2*a) - 2*Math.cos(3*a) - Math.cos(4*a);
+      pts.push({ x: cx + x*scale, y: cy - y*scale });
+    }
+    return pts;
+  }
+
+  let finaleParticles = [];
+  let finaleAnimId = null;
+  function startFinale(){
+    sizeFinale();
+    finaleCanvas.style.opacity = '1';
+    const cx = W/2, cy = H*0.46;
+    const scale = Math.min(W,H) / 36;
+    const count = 160;
+    const targets = heartTargetPoints(count, cx, cy, scale);
+    finaleParticles = targets.map((pt, i)=>{
+      const angle = Math.random()*Math.PI*2;
+      const dist = Math.max(W,H)*0.7;
+      return {
+        x: cx + Math.cos(angle)*dist,
+        y: cy + Math.sin(angle)*dist,
+        tx: pt.x, ty: pt.y,
+        size: 6 + Math.random()*14,
+        color: palette[Math.floor(Math.random()*palette.length)],
+        rot: Math.random()*Math.PI,
+        rotSpeed: (Math.random()-0.5)*0.03,
+        delay: Math.random()*30,
+        settled:false,
+        wobbleSeed: Math.random()*1000
+      };
+    });
+    let frame = 0;
+    function animate(){
+      frame++;
+      fCtx.clearRect(0,0,W,H);
+      let allSettled = true;
+      for(const p of finaleParticles){
+        if(frame < p.delay){ allSettled = false; }
+        else{
+          const dx = p.tx - p.x, dy = p.ty - p.y;
+          const dist = Math.hypot(dx,dy);
+          if(dist > 1.2){
+            p.x += dx * 0.07;
+            p.y += dy * 0.07;
+            allSettled = false;
+          } else {
+            p.x += Math.sin((frame+p.wobbleSeed)*0.03) * 0.15;
+            p.y += Math.cos((frame+p.wobbleSeed)*0.03) * 0.15;
+          }
+        }
+        p.rot += p.rotSpeed;
+        fCtx.save();
+        fCtx.translate(p.x, p.y);
+        fCtx.rotate(p.rot);
+        fCtx.fillStyle = p.color;
+        fCtx.shadowColor = p.color;
+        fCtx.shadowBlur = 14;
+        fCtx.globalAlpha = 0.9;
+        heartPath(fCtx, 0, -p.size/2, p.size);
+        fCtx.fill();
+        fCtx.restore();
+      }
+      if(frame === 70){
+        finaleName.style.transition = 'opacity 1.4s ease';
+        finaleName.style.opacity = '1';
+      }
+      if(frame === 95){
+        finaleSub.style.transition = 'opacity 1.4s ease';
+        finaleSub.style.opacity = '1';
+      }
+      finaleAnimId = requestAnimationFrame(animate);
+    }
+    animate();
+  }
+
+})();
+</script>
