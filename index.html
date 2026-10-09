@@ -397,12 +397,15 @@
     animation: pulse 2.2s ease-in-out infinite;
   }
   .gallery-finale-btn{
-    margin: 26px auto 0;
-    display:block;
+    position:absolute;
+    left:50%; top:50%;
+    margin:0;
+    white-space:nowrap;
+    z-index: 20;
     opacity:0;
     pointer-events:none;
     animation:none !important;
-    transform: scale(0.9) translateY(8px);
+    transform: translate(-50%,-50%) scale(0.9);
   }
   .gallery-finale-btn.show{
     opacity:1;
@@ -414,10 +417,10 @@
     border-color: transparent;
     box-shadow: 0 16px 42px rgba(255,92,122,0.5);
     transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.2,1.4,.3,1), padding 0.4s ease, box-shadow 0.4s ease;
-    transform: scale(1) translateY(0);
+    transform: translate(-50%,-50%) scale(1);
   }
   .gallery-finale-btn.show:hover{
-    transform: scale(1.06) translateY(0);
+    transform: translate(-50%,-50%) scale(1.06);
     box-shadow: 0 20px 52px rgba(255,92,122,0.65);
   }
 
@@ -500,10 +503,11 @@
   <section class="scene" id="scene-gallery">
     <div class="gallery-title">Нам есть, что вспомнить 💞</div>
     <div class="gallery-sub">смахни фото, чтобы увидеть следующее</div>
-    <div class="stack-wrap" id="stack-wrap"></div>
+    <div class="stack-wrap" id="stack-wrap">
+      <button class="finale-btn gallery-finale-btn" id="to-finale-btn">и напоследок...</button>
+    </div>
     <div class="gallery-dots" id="gallery-dots"></div>
     <div class="gallery-hint">смахни влево или вправо →</div>
-    <button class="finale-btn gallery-finale-btn" id="to-finale-btn">и напоследок...</button>
   </section>
 
   <!-- Scene 4 : finale -->
