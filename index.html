@@ -325,6 +325,89 @@
   }
   .finale-btn:hover{ background: var(--accent); border-color: var(--accent); }
 
+  /* ---------- Scene 3b: polaroid memories gallery ---------- */
+  #scene-gallery{ flex-direction:column; }
+  .gallery-title{
+    font-size: clamp(22px, 4vw, 34px);
+    text-align:center;
+    margin-bottom: 6px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+  }
+  .gallery-sub{
+    font-family: Georgia, serif;
+    font-size: 13px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 30px;
+    opacity:0.85;
+  }
+  .stack-wrap{
+    position:relative;
+    width: min(72vw, 300px);
+    height: min(88vw, 380px);
+    touch-action:none;
+  }
+  .polaroid{
+    position:absolute; inset:0;
+    background: #fdf9f4;
+    border-radius: 6px;
+    padding: 14px 14px 46px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05);
+    display:flex; flex-direction:column;
+    cursor: grab;
+    will-change: transform;
+    transition: transform 0.45s cubic-bezier(.2,.8,.3,1), opacity 0.45s ease;
+  }
+  .polaroid.dragging{ transition:none; cursor:grabbing; }
+  .polaroid img{
+    width:100%; height:100%;
+    object-fit:cover;
+    border-radius: 2px;
+    background:#eee;
+    pointer-events:none;
+    -webkit-user-drag:none;
+  }
+  .polaroid .cap{
+    position:absolute;
+    bottom: 12px; left:0; right:0;
+    text-align:center;
+    font-family:'Snell Roundhand','Brush Script MT', cursive;
+    font-size: 19px;
+    color:#7a2d45;
+    pointer-events:none;
+  }
+  .gallery-dots{
+    display:flex; gap:8px;
+    margin-top: 28px;
+  }
+  .gallery-dots .dot{
+    width:7px; height:7px; border-radius:50%;
+    background: rgba(255,255,255,0.3);
+    transition: background 0.3s ease, transform 0.3s ease;
+  }
+  .gallery-dots .dot.seen{ background: var(--accent); transform: scale(1.2); }
+  .gallery-hint{
+    margin-top: 18px;
+    font-size: 12px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color: var(--ink-dim);
+    opacity:0.75;
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  .gallery-finale-btn{
+    margin-top: 26px;
+    opacity:0;
+    pointer-events:none;
+    animation:none !important;
+  }
+  .gallery-finale-btn.show{
+    opacity:1;
+    pointer-events:auto;
+    transition: opacity 0.7s ease;
+  }
+
   /* ---------- Scene 4: finale heart ---------- */
   #scene-finale{
     flex-direction:column;
@@ -397,7 +480,17 @@
       <div class="sign">твой человек</div>
       <div class="fineprint">нажми ниже, чтобы увидеть ещё кое-что</div>
     </div>
-    <button class="finale-btn" id="to-finale-btn">и напоследок...</button>
+    <button class="finale-btn" id="to-gallery-btn">и напоследок...</button>
+  </section>
+
+  <!-- Scene 3b : polaroid memories gallery -->
+  <section class="scene" id="scene-gallery">
+    <div class="gallery-title">Нам есть, что вспомнить 💞</div>
+    <div class="gallery-sub">смахни фото, чтобы увидеть следующее</div>
+    <div class="stack-wrap" id="stack-wrap"></div>
+    <div class="gallery-dots" id="gallery-dots"></div>
+    <div class="gallery-hint">смахни влево или вправо →</div>
+    <button class="finale-btn gallery-finale-btn" id="to-finale-btn">и напоследок...</button>
   </section>
 
   <!-- Scene 4 : finale -->
@@ -496,6 +589,7 @@
     wipe: document.getElementById('scene-wipe'),
     question: document.getElementById('scene-question'),
     card: document.getElementById('scene-card'),
+    gallery: document.getElementById('scene-gallery'),
     finale: document.getElementById('scene-finale')
   };
   function showScene(name){
@@ -717,8 +811,119 @@
     if(scenes.question.classList.contains('active')) placeNoButtonInitial();
   });
 
-  /* ============ Scene 3 -> 4 ============ */
-  document.getElementById('to-finale-btn').addEventListener('click', ()=>{
+  /* ============ Scene 3 -> 3b: card to gallery ============ */
+  document.getElementById('to-gallery-btn').addEventListener('click', ()=>{
+    showScene('gallery');
+  });
+
+  /* ============ Scene 3b: polaroid memories stack ============ */
+  const PHOTO_FILES = ['photos/1.jpg','photos/2.jpg','photos/3.jpg','photos/4.jpg','photos/5.jpg','photos/6.jpg'];
+  const PHOTO_CAPTIONS = [
+    'эта улыбка сводит с ума',
+    'мой самый любимый кадр',
+    'здесь ты — вся ты',
+    'хочу переживать это снова и снова',
+    'влюбляюсь каждый раз заново',
+    'и так будет всегда, Жанм'
+  ];
+  const stackWrap = document.getElementById('stack-wrap');
+  const galleryDotsEl = document.getElementById('gallery-dots');
+  const toFinaleBtn = document.getElementById('to-finale-btn');
+  let galleryIndex = 0;
+  let galleryBuilt = false;
+
+  function buildGallery(){
+    if(galleryBuilt) return;
+    galleryBuilt = true;
+    PHOTO_FILES.forEach((src, i)=>{
+      const card = document.createElement('div');
+      card.className = 'polaroid';
+      card.dataset.index = i;
+      const baseRot = (i % 2 === 0 ? -1 : 1) * (4 + (i*2)%6);
+      card.style.transform = `translate(0,0) rotate(${baseRot}deg)`;
+      card.style.zIndex = PHOTO_FILES.length - i;
+      card.innerHTML = `<img src="${src}" alt="" draggable="false"><div class="cap">${PHOTO_CAPTIONS[i] || ''}</div>`;
+      stackWrap.appendChild(card);
+      galleryDotsEl.appendChild(Object.assign(document.createElement('div'), { className:'dot' }));
+      attachSwipe(card, baseRot);
+    });
+    updateDots();
+  }
+
+  function updateDots(){
+    const dots = galleryDotsEl.querySelectorAll('.dot');
+    dots.forEach((d, i)=>{ d.classList.toggle('seen', i < galleryIndex); });
+  }
+
+  function advanceGallery(){
+    galleryIndex++;
+    updateDots();
+    if(galleryIndex >= PHOTO_FILES.length){
+      toFinaleBtn.classList.add('show');
+    }
+  }
+
+  function attachSwipe(card, baseRot){
+    let startX = 0, startY = 0, curX = 0, curY = 0, dragging = false;
+    function isTop(){ return parseInt(card.dataset.index,10) === galleryIndex; }
+    function pos(e){
+      if(e.touches && e.touches.length) return { x:e.touches[0].clientX, y:e.touches[0].clientY };
+      return { x:e.clientX, y:e.clientY };
+    }
+    function down(e){
+      if(!isTop()) return;
+      dragging = true;
+      card.classList.add('dragging');
+      const p = pos(e);
+      startX = p.x; startY = p.y; curX = 0; curY = 0;
+    }
+    function move(e){
+      if(!dragging) return;
+      const p = pos(e);
+      curX = p.x - startX; curY = p.y - startY;
+      const rot = baseRot + curX * 0.06;
+      card.style.transform = `translate(${curX}px, ${curY}px) rotate(${rot}deg)`;
+      card.style.opacity = String(Math.max(0.4, 1 - Math.abs(curX)/400));
+    }
+    function up(){
+      if(!dragging) return;
+      dragging = false;
+      card.classList.remove('dragging');
+      const threshold = 90;
+      if(Math.abs(curX) > threshold){
+        const dir = curX > 0 ? 1 : -1;
+        card.style.transform = `translate(${dir*window.innerWidth}px, ${curY + dir*40}px) rotate(${baseRot + dir*50}deg)`;
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+        advanceGallery();
+      } else {
+        card.style.transform = `translate(0,0) rotate(${baseRot}deg)`;
+        card.style.opacity = '1';
+      }
+    }
+    card.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    card.addEventListener('click', ()=>{
+      if(!dragging && isTop() && Math.abs(curX) < 4){
+        const dir = (parseInt(card.dataset.index,10) % 2 === 0) ? 1 : -1;
+        card.style.transform = `translate(${dir*window.innerWidth}px, ${-60}px) rotate(${baseRot + dir*50}deg)`;
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+        advanceGallery();
+      }
+    });
+  }
+
+  const galleryObserver = new MutationObserver(()=>{
+    if(scenes.gallery.classList.contains('active')){
+      buildGallery();
+    }
+  });
+  galleryObserver.observe(scenes.gallery, { attributes:true, attributeFilter:['class'] });
+
+  /* ============ Scene 3b -> 4 ============ */
+  toFinaleBtn.addEventListener('click', ()=>{
     showScene('finale');
     bgRunning = false;
     bgCtx.clearRect(0,0,W,H);
@@ -737,6 +942,12 @@
     fCtx.setTransform(DPR,0,0,DPR,0,0);
   }
   window.addEventListener('resize', sizeFinale);
+
+  const finalePhotoImages = PHOTO_FILES.map(src => {
+    const im = new Image();
+    im.src = src;
+    return im;
+  });
 
   function heartTargetPoints(count, cx, cy, scale){
     const pts = [];
@@ -758,20 +969,31 @@
     const scale = Math.min(W,H) / 36;
     const count = 160;
     const targets = heartTargetPoints(count, cx, cy, scale);
+    const photoSlotFractions = [0.05, 0.2, 0.37, 0.58, 0.75, 0.9];
+    const photoIndices = new Map();
+    photoSlotFractions.forEach((frac, slot)=>{
+      if(!finalePhotoImages[slot]) return;
+      const idx = Math.floor(count * frac) % count;
+      photoIndices.set(idx, slot);
+    });
     finaleParticles = targets.map((pt, i)=>{
       const angle = Math.random()*Math.PI*2;
       const dist = Math.max(W,H)*0.7;
+      const photoSlot = photoIndices.get(i);
+      const isPhoto = photoSlot !== undefined;
       return {
         x: cx + Math.cos(angle)*dist,
         y: cy + Math.sin(angle)*dist,
         tx: pt.x, ty: pt.y,
-        size: 6 + Math.random()*14,
+        size: isPhoto ? scale * 3.4 : 6 + Math.random()*14,
         color: palette[Math.floor(Math.random()*palette.length)],
-        rot: Math.random()*Math.PI,
-        rotSpeed: (Math.random()-0.5)*0.03,
-        delay: Math.random()*30,
+        rot: isPhoto ? 0 : Math.random()*Math.PI,
+        rotSpeed: isPhoto ? 0 : (Math.random()-0.5)*0.03,
+        delay: isPhoto ? 10 + Math.random()*10 : Math.random()*30,
         settled:false,
-        wobbleSeed: Math.random()*1000
+        wobbleSeed: Math.random()*1000,
+        isPhoto: isPhoto,
+        img: isPhoto ? finalePhotoImages[photoSlot] : null
       };
     });
     let frame = 0;
@@ -797,12 +1019,32 @@
         fCtx.save();
         fCtx.translate(p.x, p.y);
         fCtx.rotate(p.rot);
-        fCtx.fillStyle = p.color;
-        fCtx.shadowColor = p.color;
-        fCtx.shadowBlur = 14;
-        fCtx.globalAlpha = 0.9;
-        heartPath(fCtx, 0, -p.size/2, p.size);
-        fCtx.fill();
+        if(p.isPhoto && p.img && p.img.complete && p.img.naturalWidth){
+          const r = p.size * 0.62;
+          fCtx.globalAlpha = 0.5 + 0.5*Math.min(1, frame/60);
+          fCtx.shadowColor = 'rgba(255,170,190,0.9)';
+          fCtx.shadowBlur = 20;
+          fCtx.beginPath();
+          fCtx.arc(0,0,r + 3,0,Math.PI*2);
+          fCtx.fillStyle = '#fff3f5';
+          fCtx.fill();
+          fCtx.save();
+          fCtx.beginPath();
+          fCtx.arc(0,0,r,0,Math.PI*2);
+          fCtx.clip();
+          const iw = p.img.naturalWidth, ih = p.img.naturalHeight;
+          const scaleImg = Math.max((r*2)/iw, (r*2)/ih);
+          const dw = iw*scaleImg, dh = ih*scaleImg;
+          fCtx.drawImage(p.img, -dw/2, -dh/2, dw, dh);
+          fCtx.restore();
+        } else {
+          fCtx.fillStyle = p.color;
+          fCtx.shadowColor = p.color;
+          fCtx.shadowBlur = 14;
+          fCtx.globalAlpha = 0.9;
+          heartPath(fCtx, 0, -p.size/2, p.size);
+          fCtx.fill();
+        }
         fCtx.restore();
       }
       if(frame === 70){
