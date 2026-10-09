@@ -1020,11 +1020,33 @@
     const scale = Math.min(W,H) / 36;
     const count = 160;
     const targets = heartTargetPoints(count, cx, cy, scale);
-    const photoSlotFractions = [0.05, 0.2, 0.37, 0.58, 0.75, 0.9];
+
+    // distribute photos evenly by ARC LENGTH (not raw parameter) so they
+    // don't bunch up near the top cleft / bottom tip where the curve slows down
+    const segLen = new Array(count);
+    let perimeter = 0;
+    for(let k=0;k<count;k++){
+      const a = targets[k], b = targets[(k+1)%count];
+      segLen[k] = Math.hypot(b.x-a.x, b.y-a.y);
+      perimeter += segLen[k];
+    }
+    const cum = new Array(count);
+    let acc = 0;
+    for(let k=0;k<count;k++){ cum[k] = acc; acc += segLen[k]; }
+    function indexAtArcFraction(frac){
+      const target = frac * perimeter;
+      let lo = 0;
+      for(let k=0;k<count;k++){
+        if(cum[k] > target) break;
+        lo = k;
+      }
+      return lo;
+    }
+    const photoSlotFractions = [1/12, 3/12, 5/12, 7/12, 9/12, 11/12];
     const photoIndices = new Map();
     photoSlotFractions.forEach((frac, slot)=>{
       if(!finalePhotoImages[slot]) return;
-      const idx = Math.floor(count * frac) % count;
+      const idx = indexAtArcFraction(frac);
       photoIndices.set(idx, slot);
     });
     finaleParticles = targets.map((pt, i)=>{
