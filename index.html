@@ -444,6 +444,33 @@
     color: var(--ink-dim);
     opacity:0;
   }
+  .toggle-photos-btn{
+    position:fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 60;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(6px);
+    color: var(--ink-dim);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    cursor:pointer;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 0.6s ease 1.8s, background 0.3s ease, color 0.3s ease;
+  }
+  #scene-finale.active .toggle-photos-btn{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .toggle-photos-btn:hover{
+    background: rgba(255,255,255,0.15);
+    color: var(--ink);
+  }
 
   @media (max-width: 520px){
     .choice-row{ height: 70px; }
@@ -514,6 +541,7 @@
   <section class="scene" id="scene-finale">
     <div class="finale-name" id="finale-name">Aruzhan</div>
     <div class="finale-sub" id="finale-sub">навсегда в моём сердце</div>
+    <button class="toggle-photos-btn" id="toggle-photos-btn">скрыть фото</button>
   </section>
 </div>
 
@@ -979,6 +1007,12 @@
 
   let finaleParticles = [];
   let finaleAnimId = null;
+  let showFinalePhotos = true;
+  const togglePhotosBtn = document.getElementById('toggle-photos-btn');
+  togglePhotosBtn.addEventListener('click', ()=>{
+    showFinalePhotos = !showFinalePhotos;
+    togglePhotosBtn.textContent = showFinalePhotos ? 'скрыть фото' : 'показать фото';
+  });
   function startFinale(){
     sizeFinale();
     finaleCanvas.style.opacity = '1';
@@ -1034,9 +1068,10 @@
         }
         p.rot += p.rotSpeed;
       }
-      // pass 1: plain hearts first (background layer)
+      // pass 1: plain hearts first (background layer); hidden photo slots fall back to a mini heart
       for(const p of finaleParticles){
-        if(p.isPhoto) continue;
+        if(p.isPhoto && showFinalePhotos) continue;
+        const heartSize = p.isPhoto ? 16 : p.size;
         fCtx.save();
         fCtx.translate(p.x, p.y);
         fCtx.rotate(p.rot);
@@ -1044,13 +1079,13 @@
         fCtx.shadowColor = p.color;
         fCtx.shadowBlur = 14;
         fCtx.globalAlpha = 0.9;
-        heartPath(fCtx, 0, -p.size/2, p.size);
+        heartPath(fCtx, 0, -heartSize/2, heartSize);
         fCtx.fill();
         fCtx.restore();
       }
       // pass 2: photos on top so they always sit above the hearts
       for(const p of finaleParticles){
-        if(!p.isPhoto) continue;
+        if(!p.isPhoto || !showFinalePhotos) continue;
         fCtx.save();
         fCtx.translate(p.x, p.y);
         fCtx.rotate(p.rot);
